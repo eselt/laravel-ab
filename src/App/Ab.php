@@ -63,7 +63,7 @@ class Ab {
             self::$session = Instance::firstOrCreate([
                 'instance'=>Session::get(config('laravel-ab.cache_key')),
                 'identifier'=>$this->request->getClientIp(),
-                'metadata'=>( function_exists('laravel_ab_meta') ? call_user_func('laravel_ab_meta') : null)
+                // 'metadata'=>( function_exists('laravel_ab_meta') ? call_user_func('laravel_ab_meta') : null)
             ]);
         }
 
