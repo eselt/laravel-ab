@@ -161,8 +161,10 @@ class Ab {
             $this->fired = $fired;
         }
         else {
-            shuffle($conditions);
-            $this->fired = current($conditions);
+            // shuffle($conditions);
+            // $this->fired = current($conditions);
+            
+            $this->fired = $conditions[rand(0, count($conditions)-1)];
         }
 
         return $this->conditions[$this->fired];
