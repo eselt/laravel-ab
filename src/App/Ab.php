@@ -34,6 +34,7 @@ class Ab {
     protected $fired;
     protected $goal;
     protected $metadata_callback;
+
     /**
      * @var Request
      */
@@ -163,12 +164,48 @@ class Ab {
         else {
             // shuffle($conditions);
             // $this->fired = current($conditions);
-            
-            $this->fired = $conditions[rand(0, count($conditions)-1)];
+
+            if ($randCondition = $this->randCondition()) {
+                $this->fired = $randCondition;
+            } else {
+                $this->fired = $conditions[rand(0, count($conditions)-1)];
+            }
         }
 
         return $this->conditions[$this->fired];
 
+    }
+
+    protected function randCondition()
+    {
+        $experiment = Experiments::where([
+            'experiment' => $this->name,
+            'goal' => $this->goal,
+        ])->first();
+
+        $conditions = [];
+
+        foreach ($experiment->events as $event) {
+            if (isset($conditions[$event->value])) {
+                $conditions[$event->value]++;
+            } else {
+                $conditions[$event->value] = 0;
+            }
+        }
+
+        asort($conditions);
+        $keys = array_keys($conditions);
+        $mostUsed = end($keys);
+        $leastUsed = $keys[0];
+
+        // Jeśli odchylenie między najczęściej i najrzardziej losowaną opcją
+        // jest większe niż 10% zwróć najrzardziej losowaną opcję
+        $diff = ($conditions[$mostUsed] - $conditions[$leastUsed]) / $conditions[$mostUsed] * 100;
+        if ($diff > 10) {
+            return $leastUsed;
+        }
+
+        return false;
     }
 
     /**
