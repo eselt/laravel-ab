@@ -193,6 +193,10 @@ class Ab {
             }
         }
 
+        if (count($conditions) < 2) {
+            return false;
+        }
+
         asort($conditions);
         $keys = array_keys($conditions);
         $mostUsed = end($keys);
