@@ -183,6 +183,10 @@ class Ab {
             'goal' => $this->goal,
         ])->first();
 
+        if (null === $experiment) {
+            return false;
+        }
+
         $conditions = [];
 
         foreach ($experiment->events as $event) {
@@ -193,6 +197,7 @@ class Ab {
             }
         }
 
+        // Zapobiegamy błędom
         if (count($conditions) < 2) {
             return false;
         }
@@ -201,6 +206,11 @@ class Ab {
         $keys = array_keys($conditions);
         $mostUsed = end($keys);
         $leastUsed = $keys[0];
+
+        // Zapobiegamy błędom
+        if ($conditions[$leastUsed] == 0 || ($conditions[$leastUsed] == $conditions[$mostUsed])) {
+            return false;
+        }
 
         // Jeśli odchylenie między najczęściej i najrzardziej losowaną opcją
         // jest większe niż 10% zwróć najrzardziej losowaną opcję
