@@ -208,13 +208,20 @@ class Ab {
         $leastUsed = $keys[0];
 
         // Zapobiegamy błędom
-        if ($conditions[$leastUsed] == 0 || ($conditions[$leastUsed] == $conditions[$mostUsed])) {
+        if ($conditions[$leastUsed] == $conditions[$mostUsed]) {
             return false;
         }
 
         // Jeśli odchylenie między najczęściej i najrzardziej losowaną opcją
         // jest większe niż 10% zwróć najrzardziej losowaną opcję
-        $diff = ($conditions[$mostUsed] - $conditions[$leastUsed]) / $conditions[$mostUsed] * 100;
+        // $diff = ($conditions[$mostUsed] - $conditions[$leastUsed]) / $conditions[$mostUsed] * 100;
+        // if ($diff > 10) {
+        //     return $leastUsed;
+        // }
+
+        // Jeśli odchylenie między najczęściej i najrzardziej losowaną opcją
+        // jest większe niż 10 sztuk zwróć najrzardziej losowaną opcję
+        $diff = $conditions[$mostUsed] - $conditions[$leastUsed];
         if ($diff > 10) {
             return $leastUsed;
         }
