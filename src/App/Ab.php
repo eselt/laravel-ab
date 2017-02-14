@@ -94,7 +94,6 @@ class Ab {
 
     public static function saveSession(){
 
-
         if (!empty(self::$instance)){
             foreach(self::$instance as $event){
 
@@ -111,12 +110,26 @@ class Ab {
 
                 $experiment->events()->save($event);
                 self::$session->events()->save($event);
+                
             }
         }
 
-
-
         return  Session::get(config('laravel-ab.cache_key'));
+    }
+
+    public static function assignSessionToUser($gtid = null)
+    {
+        $user = auth()->user();
+
+        if (! $user && $gtid) {
+            $user = \App\User::findGuest($gtid);
+        }
+
+        if ($user && $user->ab_instance_id != self::$session->id) {
+            $user->ab_instance_id = self::$session->id;
+            $user->ab_instance = self::$session->instance;
+            $user->save();
+        }
     }
 
 
