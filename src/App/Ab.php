@@ -56,7 +56,7 @@ class Ab {
         if (!Session::has(config('laravel-ab.cache_key')) || $forceSession){
             $uid = md5(uniqid().$this->request->getClientIp());
             $laravel_ab_id = $this->request->cookie(config('laravel-ab.cache_key'), $uid);
-            Session::set(config('laravel-ab.cache_key'),$uid);
+            Session::put(config('laravel-ab.cache_key'),$uid);
 
         }
 
