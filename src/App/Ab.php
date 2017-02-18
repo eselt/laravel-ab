@@ -233,9 +233,9 @@ class Ab {
         // }
 
         // Jeśli odchylenie między najczęściej i najrzardziej losowaną opcją
-        // jest większe niż 10 sztuk zwróć najrzardziej losowaną opcję
+        // jest większe niż 3 sztuk zwróć najrzardziej losowaną opcję
         $diff = $conditions[$mostUsed] - $conditions[$leastUsed];
-        if ($diff > 10) {
+        if ($diff > 3) {
             return $leastUsed;
         }
 
