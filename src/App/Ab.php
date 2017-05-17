@@ -1,20 +1,22 @@
-<?php namespace ComoCode\LaravelAb\App;
+<?php 
 
+namespace ComoCode\LaravelAb\App;
 
+use App\Visitor;
+use ComoCode\LaravelAb\App\Events;
+use ComoCode\LaravelAb\App\Experiments;
+use ComoCode\LaravelAb\App\Goal;
+use ComoCode\LaravelAb\App\Instance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
-use ComoCode\LaravelAb\App\Experiments;
-use ComoCode\LaravelAb\App\Instance;
-use ComoCode\LaravelAb\App\Events;
-use ComoCode\LaravelAb\App\Goal;
 
-class Ab {
+class Ab 
+{
 
     /**
      * @var static $session
      * Instance Object to identify user's session
      */
-
     protected static $session;
 
     /**
@@ -24,7 +26,6 @@ class Ab {
      * and event key->value pais for the instance
      */
     protected static $instance = [];
-
 
     /*
      * Individual Test Parameters
@@ -46,39 +47,57 @@ class Ab {
      */
     public function __construct(Request $request)
     {
+        // \Log::debug('Ab::__construct');
+
         $this->request = $request;
         $this->ensureUser(false);
 
     }
 
-    public function ensureUser($forceSession = false){
-
-        if (!Session::has(config('laravel-ab.cache_key')) || $forceSession){
-            $uid = md5(uniqid().$this->request->getClientIp());
+    public function ensureUser($forceSession = false)
+    {
+        if (! Session::has(config('laravel-ab.cache_key')) || $forceSession) {
+            
+            // Sprawdzamy czy Visitor ma podpiętą instancję testu
+            // jeśli tak to bierzemy uid z instancji podpiętej do Visitora
+            // w przeciwnym wypadku generujemy losowe uid
+            if (app('visitor') && app('visitor')->abTestInstance) {
+                $uid = app('visitor')->abTestInstance->instance;
+            } else {
+                $uid = md5(uniqid().$this->request->getClientIp());
+            }
+            
             $laravel_ab_id = $this->request->cookie(config('laravel-ab.cache_key'), $uid);
             Session::put(config('laravel-ab.cache_key'),$uid);
-
         }
 
-        if (empty(self::$session)){
-            self::$session = Instance::firstOrCreate([
-                'instance'=>Session::get(config('laravel-ab.cache_key')),
-                'identifier'=>$this->request->getClientIp(),
-                // 'metadata'=>( function_exists('laravel_ab_meta') ? call_user_func('laravel_ab_meta') : null)
+        if (empty(self::$session)) {
+            // self::$session = Instance::firstOrCreate([
+            //     'instance'=>Session::get(config('laravel-ab.cache_key')),
+            //     'identifier'=>$this->request->getClientIp(),
+            // ]);
+            
+            $instance = Instance::firstOrCreate([
+                'instance' => Session::get(config('laravel-ab.cache_key')),
             ]);
+
+            if ($instance->identifier != $this->request->getClientIp()) {
+                $instance->identifier = $this->request->getClientIp();
+                $instance->save();
+            }
+
+            self::$session = $instance;
         }
-
-
     }
-
 
     /**
      * @param array $session_variables
      * Load initial session variables to store or track
      * Such as variables you want to track being passed into the template.
      */
-    public function setup(Array $session_varfiables = array()){
-        foreach($session_variables as $key=>$value){
+    public function setup(Array $session_varfiables = array())
+    {
+        foreach ($session_variables as $key=>$value) {
             $experiment = new self;
             $experiment->experiment($key);
             $experiment->fired = $value;
@@ -91,47 +110,28 @@ class Ab {
      * When the view is rendered, this funciton saves all event->firing pairing to storage
      *
      */
-
-    public static function saveSession(){
-
-        if (!empty(self::$instance)){
-            foreach(self::$instance as $event){
-
+    public static function saveSession() 
+    {
+        if (! empty(self::$instance)) {
+            foreach (self::$instance as $instance) {
                 $experiment = Experiments::firstOrCreate([
-                    'experiment'=> $event->name,
-                    'goal'=>$event->goal
+                    'experiment' => $instance->name,
+                    'goal' => $instance->goal
                 ]);
 
                 $event = Events::firstOrCreate([
-                    'instance_id'=>self::$session->id,
-                    'name'=>$event->name,
-                    'value'=>$event->fired
+                    'instance_id' => self::$session->id,
+                    'name' => $instance->name,
+                    'value' => $instance->fired
                 ]);
 
                 $experiment->events()->save($event);
                 self::$session->events()->save($event);
-                
             }
         }
 
-        return  Session::get(config('laravel-ab.cache_key'));
+        return Session::get(config('laravel-ab.cache_key'));
     }
-
-    public static function assignSessionToUser($gtid = null)
-    {
-        $user = auth()->user();
-
-        if (! $user && $gtid) {
-            $user = \App\User::findGuest($gtid);
-        }
-
-        if ($user && $user->ab_instance_id != self::$session->id) {
-            $user->ab_instance_id = self::$session->id;
-            $user->ab_instance = self::$session->instance;
-            $user->save();
-        }
-    }
-
 
     /**
      * @param $experiment
@@ -139,13 +139,14 @@ class Ab {
      *
      * Used to track the name of the experiment
      */
-    public function experiment($experiment){
+    public function experiment($experiment)
+    {
+        // \Log::debug('Ab::experiment: ' . $experiment);
 
         $this->name = $experiment;
         $this->instanceEvent();
         return $this;
     }
-
 
     /**
      * @param $goal
@@ -153,43 +154,54 @@ class Ab {
      *
      * Sets the tracking target for the experiment, and returns one of the conditional elements for display
      */
-    public function track($goal){
+    public function track($goal) 
+    {
+        // \Log::debug('Ab::track: ' . $goal);
 
         $this->goal = $goal;
 
         ob_end_clean();
 
         $conditions = [];
-        foreach($this->conditions as $key=>$condition){
-            if (preg_match('/\[(\d+)\]/',$key,$matches)){
-                foreach(range(1,$matches[1]) as $index){
+        foreach ($this->conditions as $key=>$condition) {
+            if (preg_match('/\[(\d+)\]/',$key,$matches)) {
+                foreach (range(1,$matches[1]) as $index) {
                     $conditions[] = $key;
                 }
             }
         }
-        if (empty($conditions)){
+
+        if (empty($conditions)) {
             $conditions = array_keys($this->conditions);
         }
-        /// has the user fired this particular experiment yet?
-        if ($fired = $this->hasExperiment($this->name)){
+
+        // has the user fired this particular experiment yet?
+        if ($fired = $this->hasExperiment($this->name)) {
             $this->fired = $fired;
         }
         else {
-            // shuffle($conditions);
-            // $this->fired = current($conditions);
-
-            if ($randCondition = $this->randCondition()) {
-                $this->fired = $randCondition;
-            } else {
-                $this->fired = $conditions[rand(0, count($conditions)-1)];
-            }
+            $this->setConditionToFire($conditions);
         }
 
         return $this->conditions[$this->fired];
-
     }
 
-    protected function randCondition()
+    protected function setConditionToFire($conditionKeys)
+    {
+        // Sprawdzamy czy Visitor jest otagowany jednym z tagów znajdująych się w $conditionKeys
+        // Jeśli tak to ustawiamy klucz jako wylosowaną wartość
+        foreach ($conditionKeys as $key) {
+            if (Visitor::isCurrentVisitorTaggedByKey($key)) {
+                $this->fired = $key;
+                return;
+            }
+        }
+
+        // W przeciwnym wypadku losujemy
+        $this->fired = $this->randCondition($conditionKeys);
+    }
+
+    protected function randCondition($conditionKeys)
     {
         $experiment = Experiments::where([
             'experiment' => $this->name,
@@ -197,7 +209,7 @@ class Ab {
         ])->first();
 
         if (null === $experiment) {
-            return false;
+            return $this->_randCondition($conditionKeys);
         }
 
         $conditions = [];
@@ -212,7 +224,7 @@ class Ab {
 
         // Zapobiegamy błędom
         if (count($conditions) < 2) {
-            return false;
+            return $this->_randCondition($conditionKeys);
         }
 
         asort($conditions);
@@ -222,15 +234,8 @@ class Ab {
 
         // Zapobiegamy błędom
         if ($conditions[$leastUsed] == $conditions[$mostUsed]) {
-            return false;
+            return $this->_randCondition($conditionKeys);
         }
-
-        // Jeśli odchylenie między najczęściej i najrzardziej losowaną opcją
-        // jest większe niż 10% zwróć najrzardziej losowaną opcję
-        // $diff = ($conditions[$mostUsed] - $conditions[$leastUsed]) / $conditions[$mostUsed] * 100;
-        // if ($diff > 10) {
-        //     return $leastUsed;
-        // }
 
         // Jeśli odchylenie między najczęściej i najrzardziej losowaną opcją
         // jest większe niż 3 sztuk zwróć najrzardziej losowaną opcję
@@ -239,7 +244,12 @@ class Ab {
             return $leastUsed;
         }
 
-        return false;
+        return $this->_randCondition($conditionKeys);
+    }
+
+    protected function _randCondition($conditionKeys)
+    {
+        return $conditionKeys[rand(0, count($conditionKeys)-1)];
     }
 
     /**
@@ -248,14 +258,13 @@ class Ab {
      *
      * Insert a simple goal tracker to know if user has reach a milestone
      */
-    public function goal($goal,$value=null){
-
+    public function goal($goal, $value = null)
+    {
         $goal = Goal::create(['goal'=>$goal, 'value'=>$value]);
 
         self::$session->goals()->save($goal);
 
         return $goal;
-
     }
 
 
@@ -266,20 +275,19 @@ class Ab {
      * Captures the HTML between AB condtions  and tracks them to their condition name.
      * One of these conditions will be randomized to some ratio for display and tracked
      */
-    public function condition($condition){
-
+    public function condition($condition)
+    {
         $reference = $this;
 
-        if (count($this->conditions) !== 0){
+        if (count($this->conditions) !== 0) {
             ob_end_clean();
         }
 
-        $reference->saveCondition($condition, ''); /// so above count fires after first pass
+        $reference->saveCondition($condition, ''); // so above count fires after first pass
 
-        ob_start(function($data) use($condition, $reference){
+        ob_start(function($data) use ($condition, $reference) {
             $reference->saveCondition($condition, $data);
         });
-
     }
 
     /**
@@ -288,10 +296,11 @@ class Ab {
      *
      * Ensuring a user session string on any call for a key to be used.
      */
-    public static function getSession(){
-
+    public static function getSession()
+    {
         return self::$session;
     }
+
     /**
      * @param $condition
      * @param $data
@@ -299,7 +308,8 @@ class Ab {
      *
      * A setter for the condition key=>value pairing.
      */
-    public function saveCondition($condition, $data){
+    public function saveCondition($condition, $data)
+    {
         $this->conditions[$condition] = $data;
     }
 
@@ -309,8 +319,8 @@ class Ab {
      *
      * Tracks at an instance level which event was selected for the session
      */
-    public function instanceEvent(){
-
+    public function instanceEvent()
+    {
         self::$instance[$this->name] = $this;
     }
 
@@ -320,7 +330,8 @@ class Ab {
      *
      * Determines if a user has a particular event already in this session
      */
-    public function hasExperiment($experiment){
+    public function hasExperiment($experiment)
+    {
         $session_events = self::$session->events()->get();
         foreach($session_events as $event){
             if ($event->name == $experiment){
@@ -333,16 +344,18 @@ class Ab {
     /**
      * Simple method for resetting the session variable for development purposes
      */
-    public function forceReset(){
+    public function forceReset()
+    {
         $this->ensureUser(true);
     }
 
-    public function toArray() {
+    public function toArray() 
+    {
         return [$this->name => $this->fired];
     }
 
-    public function getEvents(){
+    public function getEvents()
+    {
         return self::$instance;
     }
-
 }
