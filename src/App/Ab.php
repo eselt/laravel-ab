@@ -2,6 +2,7 @@
 
 namespace ComoCode\LaravelAb\App;
 
+use App\User;
 use App\Visitor;
 use ComoCode\LaravelAb\App\Events;
 use ComoCode\LaravelAb\App\Experiments;
@@ -57,12 +58,11 @@ class Ab
     public function ensureUser($forceSession = false)
     {
         if (! Session::has(config('laravel-ab.cache_key')) || $forceSession) {
-            
             // Sprawdzamy czy Visitor ma podpiętą instancję testu
             // jeśli tak to bierzemy uid z instancji podpiętej do Visitora
             // w przeciwnym wypadku generujemy losowe uid
-            if (app('visitor') && app('visitor')->abTestInstance) {
-                $uid = app('visitor')->abTestInstance->instance;
+            if (User::current()->abTestInstance()) {
+                $uid = User::current()->abTestInstance()->instance;
             } else {
                 $uid = md5(uniqid().$this->request->getClientIp());
             }
@@ -72,13 +72,17 @@ class Ab
         }
 
         if (empty(self::$session)) {
-            // self::$session = Instance::firstOrCreate([
-            //     'instance'=>Session::get(config('laravel-ab.cache_key')),
-            //     'identifier'=>$this->request->getClientIp(),
-            // ]);
-            
+            // Sprawdzamy czy Visitor ma podpiętą instancję testu
+            // jeśli tak to bierzemy uid z instancji podpiętej do Visitora
+            // w przeciwnym wypadku bierzemy uid z sesji
+            if (User::current()->abTestInstance()) {
+                $uid = User::current()->abTestInstance()->instance;
+            } else {
+                $uid = Session::get(config('laravel-ab.cache_key'));
+            }
+
             $instance = Instance::firstOrCreate([
-                'instance' => Session::get(config('laravel-ab.cache_key')),
+                'instance' => $uid,
             ]);
 
             if ($instance->identifier != $this->request->getClientIp()) {
