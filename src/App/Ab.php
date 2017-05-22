@@ -194,8 +194,9 @@ class Ab
     {
         // Sprawdzamy czy Visitor jest otagowany jednym z tagów znajdująych się w $conditionKeys
         // Jeśli tak to ustawiamy klucz jako wylosowaną wartość
+        // Tagi zapisujemy jako: "[nazwa_eksperymentu]nazwa_wylosowanego_wariantu"
         foreach ($conditionKeys as $key) {
-            if (Visitor::isCurrentVisitorTaggedByKey($key)) {
+            if (Visitor::isCurrentVisitorTaggedByKey('[' . $this->name . ']' . $key)) {
                 $this->fired = $key;
                 return;
             }
