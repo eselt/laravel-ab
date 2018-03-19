@@ -41,6 +41,8 @@ class Ab
      * @var Request
      */
     private $request;
+    
+    private $obLevel = 0;
 
     /**
      * Create a instance for a user session if there isnt once.
@@ -166,8 +168,9 @@ class Ab
     {
         // \Log::debug('Ab::track: ' . $goal);
 
-        if (ob_get_level() > 0) {
+        while ($this->obLevel > 0) {
             ob_end_clean();
+            $this->obLevel--;
         }
 
         $conditions = [];
@@ -294,12 +297,14 @@ class Ab
         $reference = $this;
 
         if (count($this->conditions) !== 0) {
+            $this->obLevel--;
             ob_end_clean();
         }
 
         $reference->saveCondition($condition, ''); // so above count fires after first pass
 
-        ob_start(function($data) use ($condition, $reference) {
+        $this->obLevel++;
+        ob_start(function($data) use ($condition, $reference) {            
             $reference->saveCondition($condition, $data);
         });
     }
