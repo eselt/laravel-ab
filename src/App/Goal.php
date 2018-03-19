@@ -3,7 +3,7 @@
 class Goal extends \Eloquent {
 
     protected $table = 'ab_goal';
-	protected $fillable = ['goal','value'];
+	protected $fillable = ['goal','value','experiment_id'];
 
     public function experiment(){
         return $this->belongsTo('ComoCode\LaravelAb\App\Experiment');

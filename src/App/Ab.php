@@ -118,10 +118,7 @@ class Ab
     {
         if (! empty(self::$instance)) {
             foreach (self::$instance as $instance) {
-                $experiment = Experiments::firstOrCreate([
-                    'experiment' => $instance->name,
-                    'goal' => $instance->goal
-                ]);
+                $experiment = self::findOrCreateExperiment($instance->name);
 
                 $event = Events::firstOrCreate([
                     'instance_id' => self::$session->id,
@@ -135,6 +132,13 @@ class Ab
         }
 
         return Session::get(config('laravel-ab.cache_key'));
+    }
+    
+    public static function findOrCreateExperiment($name)
+    {
+        return Experiments::firstOrCreate([
+            'experiment' => $name
+        ]);
     }
 
     /**
@@ -162,9 +166,9 @@ class Ab
     {
         // \Log::debug('Ab::track: ' . $goal);
 
-        $this->goal = $goal;
-
-        ob_end_clean();
+        if (ob_get_level() > 0) {
+            ob_end_clean();
+        }
 
         $conditions = [];
         foreach ($this->conditions as $key=>$condition) {
@@ -209,8 +213,7 @@ class Ab
     protected function randCondition($conditionKeys)
     {
         $experiment = Experiments::where([
-            'experiment' => $this->name,
-            'goal' => $this->goal,
+            'experiment' => $this->name
         ])->first();
 
         if (null === $experiment) {
@@ -265,7 +268,13 @@ class Ab
      */
     public function goal($goal, $value = null)
     {
-        $goal = Goal::create(['goal'=>$goal, 'value'=>$value]);
+        $experiment = self::findOrCreateExperiment($this->name);
+        
+        $goal = Goal::create([
+            'goal' => $goal, 
+            'value' => $value,
+            'experiment_id' => $experiment->id
+        ]);
 
         self::$session->goals()->save($goal);
 

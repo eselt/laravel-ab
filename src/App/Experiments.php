@@ -9,7 +9,7 @@ class Experiments extends \Eloquent {
         return $this->hasMany('ComoCode\LaravelAb\App\Events');
     }
 
-    /*public function goals(){
-        return $this->hasMany('EightyTwoRules\LaravelAb\Goal', 'goal','goal');
-    }*/
+    public function goals(){
+        return $this->hasMany(\ComoCode\LaravelAb\App\Goal::class);
+    }
 }
