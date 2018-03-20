@@ -271,7 +271,12 @@ class Ab
      */
     public function goal($goal, $value = null)
     {
-        $experiment = self::findOrCreateExperiment($this->name);
+        self::experimentGoal($this->name, $goal, $value);
+    }
+    
+    public static function experimentGoal($experimentName, $goal, $value = null)
+    {
+        $experiment = self::findOrCreateExperiment($experimentName);
         
         $goal = Goal::create([
             'goal' => $goal, 
