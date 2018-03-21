@@ -284,7 +284,9 @@ class Ab
             'experiment_id' => $experiment->id
         ]);
 
-        self::$session->goals()->save($goal);
+        if (self::$session) {
+            self::$session->goals()->save($goal);
+        }
 
         return $goal;
     }
